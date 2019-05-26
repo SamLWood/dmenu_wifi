@@ -2,6 +2,7 @@ dmenu_wifi
 ==========
 
 This script provides a simple way to connect to wi-fi networks without the need for something like NetworkManager. There's a little bit of setup to get it working seamlessly:
+ - This script was written for use with Arch Linux, so it uses `wpa_supplicant` and `dhcpcd`.
  - Make sure you have the `iw` utility installed to scan for and connect to networks.
  - This script uses the password patch for `dmenu`. It is available on the [Suckless website](https://tools.suckless.org/dmenu/patches/password/).
  - The script needs to know the name of your computer's wi-fi interface. It probably looks something like "wlp2s0" or "wlan0". Run `ip link` to list out all of your computer's network interfaces. Once you find it, set it as the value of `INTERFACE` in the script.
