@@ -12,3 +12,4 @@ Other notes
 -----------
 
  - When you tell `dmenu_wifi` to remember a wi-fi network, it will write a config file for it and store it in `/etc/wpa_supplicant/known_networks`.
+ - `dmenu_wifi` currently assumes that all networks require passwords. Testing on open networks has been limited and it is unknown whether it will work properly with such networks.
