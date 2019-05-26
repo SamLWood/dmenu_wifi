@@ -1,0 +1,17 @@
+#!/bin/sh
+INTERFACE='wlp2s0'
+NETWORK=$(iw "$INTERFACE" scan | sed -nE '/^	SSID: (\\x00|$)/d;s/^	SSID: //p' | awk '!seen[$0]++' | dmenu -i -l 16 -p 'Available wi-fi networks:' || kill $$)
+CONFIG="/etc/wpa_supplicant/known_networks/$NETWORK"
+REMEMBER='Yes'
+if [ ! -f "$CONFIG" ]; then
+	PASSPHRASE=$(dmenu -p "Enter password for \"$NETWORK\":" -P || kill $$)
+	REMEMBER=$(printf 'Yes\nNo' | dmenu -i -p 'Remember password for this network?' || kill $$)
+	mkdir -p '/etc/wpa_supplicant/known_networks'
+	wpa_passphrase "$NETWORK" "$PASSPHRASE" > "$CONFIG"
+	chmod 600 "$CONFIG"
+fi
+WPA_PID=$(pidof 'wpa_supplicant')
+test -n "$WPA_PID" && kill $WPA_PID
+wpa_supplicant -B -i "$INTERFACE" -c "$CONFIG"
+dhcpcd "$INTERFACE"
+[ "$REMEMBER" != 'Yes' ] && rm "$CONFIG"
