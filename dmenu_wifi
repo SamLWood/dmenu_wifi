@@ -4,11 +4,16 @@ NETWORK=$(iw "$INTERFACE" scan | sed -nE '/^	SSID: (\\x00|$)/d;s/^	SSID: //p' | 
 CONFIG="/etc/wpa_supplicant/known_networks/$NETWORK"
 REMEMBER='Yes'
 if [ ! -f "$CONFIG" ]; then
-	PASSPHRASE=$(dmenu -p "Enter password for \"$NETWORK\":" -P || kill $$)
-	REMEMBER=$(printf 'Yes\nNo' | dmenu -i -p 'Remember password for this network?' || kill $$)
 	mkdir -p '/etc/wpa_supplicant/known_networks'
-	wpa_passphrase "$NETWORK" "$PASSPHRASE" > "$CONFIG"
+	OPEN=$(printf 'No\nYes' | dmenu -i -p 'Open network?' || kill $$)
+	if [ $OPEN = 'Yes' ]; then
+		printf "network={\n\tssid=\"$NETWORK\"\n\tkey_mgmt=NONE\n}" > "$CONFIG"
+	else
+		PASSPHRASE=$(dmenu -p "Enter password for \"$NETWORK\":" -P || kill $$)
+		wpa_passphrase "$NETWORK" "$PASSPHRASE" > "$CONFIG"
+	fi
 	chmod 600 "$CONFIG"
+	REMEMBER=$(printf 'Yes\nNo' | dmenu -i -p 'Remember this network?' || kill $$)
 fi
 WPA_PID=$(pidof 'wpa_supplicant')
 test -n "$WPA_PID" && kill $WPA_PID
