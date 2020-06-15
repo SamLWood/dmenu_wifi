@@ -1,8 +1,8 @@
 dmenu_wifi
 ==========
 
-This script is meant to provide a simple way to connect to wi-fi networks
-without the need for something like NetworkManager. It's precise
+This script is meant to provide a simple way to connect to wi-fi
+networks without the need for something like NetworkManager. Its precise
 mechanisms for doing this are outlined in the comments at the top of
 the script. There is a little bit of setup to get it working seamlessly:
 
