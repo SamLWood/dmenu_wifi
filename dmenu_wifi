@@ -1,22 +1,51 @@
 #!/bin/sh
-INTERFACE='wlp2s0'
-NETWORK=$(iw "$INTERFACE" scan | sed -nE '/^	SSID: (\\x00|$)/d;s/^	SSID: //p' | awk '!seen[$0]++' | dmenu -i -l 16 -p 'Available wi-fi networks:' || kill $$)
+
+# This is the name of your computer's wi-fi device, which the script needs
+# to know in order to run. You can find it most easily by checking the
+# output of 'ip link', which will list all of your network devices and
+# their status. The wi-fi one will usually look something like 'wlp2s0'
+# or 'wlan0'.
+DEVICE='wlp2s0'
+
+# This script provides a dmenu prompt to connect to wi-fi networks with
+# wpa_supplicant. It works by scanning for networks using the 'iw' command and
+# passing the results to the user with dmenu, collecting a password as well
+# if necessary (you will need a build of dmenu with the password patch
+# applied). This information will then be used to generate a config file
+# for wpa_supplicant. After connecting, the script will attempt to acquire
+# an IP address with dhcpcd.
+#
+# The generated config file can optionally be stored permanently in
+# /etc/wpa_supplicant/known_networks/ if the user choses to 'remember'
+# the network. The permissions on these files are set such that only root
+# can read them.
+#
+# Because the wi-fi commands this script runs require direct access to the
+# computer's wi-fi hardware, many have to be run as root. If there is a
+# clean fix for this using a udev rule or something, I haven't found it,
+# so my recommendation if you want to have this script bound to a key,
+# or otherwise run it without a password, is to set this whole script
+# to require root privileges, then carve out a password exception for it
+# in /etc/sudoers.
+
+NETWORK=$(iw "$DEVICE" scan | sed -n 's/^	SSID: //p' | awk '!/^(\\x00)*$/ && !seen[$0]++' | dmenu -i -l 16 -p 'Choose network:') || exit 0
+[ -z "$NETWORK" ] && exit 1
 CONFIG="/etc/wpa_supplicant/known_networks/$NETWORK"
 REMEMBER='Yes'
 if [ ! -f "$CONFIG" ]; then
 	mkdir -p '/etc/wpa_supplicant/known_networks'
-	OPEN=$(printf 'No\nYes' | dmenu -i -p 'Open network?' || kill $$)
-	if [ $OPEN = 'Yes' ]; then
-		printf "network={\n\tssid=\"$NETWORK\"\n\tkey_mgmt=NONE\n}" > "$CONFIG"
+	PW_REQUIRED=$(printf 'Yes\nNo' | dmenu -i -p 'Password required?') || exit 0
+	if [ "$PW_REQUIRED" = 'Yes' ]; then
+		PASSWORD=$(dmenu -P -p "Password for \"$NETWORK\"") || exit 0
+		wpa_passphrase "$NETWORK" "$PASSWORD" > "$CONFIG"
 	else
-		PASSPHRASE=$(dmenu -p "Enter password for \"$NETWORK\":" -P || kill $$)
-		wpa_passphrase "$NETWORK" "$PASSPHRASE" > "$CONFIG"
+		printf "network={\n\tssid=\"$NETWORK\"\n\tkey_mgmt=NONE\n}\n" > "$CONFIG"
 	fi
 	chmod 600 "$CONFIG"
-	REMEMBER=$(printf 'Yes\nNo' | dmenu -i -p 'Remember this network?' || kill $$)
+	REMEMBER=$(printf 'Yes\nNo' | dmenu -i -p 'Remember this network?') || exit 0
 fi
-WPA_PID=$(pidof 'wpa_supplicant')
-test -n "$WPA_PID" && kill $WPA_PID
-wpa_supplicant -B -i "$INTERFACE" -c "$CONFIG"
-dhcpcd "$INTERFACE"
+WPA_PID=$(ps -e | awk '$NF == "wpa_supplicant" { print $1 }')
+[ -n "$WPA_PID" ] && kill "$WPA_PID"
+wpa_supplicant -B -i "$DEVICE" -c "$CONFIG"
+dhcpcd "$DEVICE"
 [ "$REMEMBER" != 'Yes' ] && rm "$CONFIG"
